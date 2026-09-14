@@ -5,7 +5,8 @@ import io
 import base64
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, session
+from flask_wtf.csrf import CSRFProtect
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -14,16 +15,15 @@ from pptx.enum.shapes import MSO_SHAPE
 from PIL import Image
 import tempfile
 
-# 先创建必要的目录
-os.makedirs('logs', exist_ok=True)
-os.makedirs('uploads', exist_ok=True)
+os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs'), exist_ok=True)
+os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads'), exist_ok=True)
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/app.log'),
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'app.log')),
         logging.StreamHandler()
     ]
 )
@@ -31,22 +31,23 @@ logger = logging.getLogger(__name__)
 logger.info("应用启动中...")
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', str(uuid.uuid4()))
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
-app.config['SECRET_KEY'] = str(uuid.uuid4())  # 添加安全密钥
+csrf = CSRFProtect(app)
 
 # 验证目录可写性
 try:
     logger.info(f"上传目录检查成功: {app.config['UPLOAD_FOLDER']}")
     logger.info("日志目录检查成功")
-    
+
     # 验证上传目录可写性
     test_file = os.path.join(app.config['UPLOAD_FOLDER'], '.test_writability')
     with open(test_file, 'w') as f:
         f.write('test')
     os.remove(test_file)
     logger.info("目录可写性测试通过")
-    
+
 except Exception as e:
     logger.error(f"目录权限检查失败: {str(e)}")
     raise
@@ -129,7 +130,7 @@ def compress_image(image_data, max_size=1920, quality=85):
         # 尝试返回原始数据
         try:
             return base64.b64decode(image_data.split(',')[1])
-        except:
+        except Exception:
             return None
 
 
@@ -142,7 +143,14 @@ def index():
     }
     now_date = datetime.now().strftime("%Y年%m月%d日")
     return render_template('index.html', themes=THEMES.keys(),
-                           theme_previews=theme_previews, now_date=now_date)
+                           theme_previews=theme_previews, now_date=now_date,
+                           csrf_token=session.get('csrf_token', ''))
+
+
+@app.route('/csrf-token')
+def get_csrf_token():
+    """获取 CSRF token"""
+    return jsonify({'csrf_token': session.get('csrf_token', '')})
 
 
 @app.route('/generate', methods=['POST'])
@@ -150,7 +158,9 @@ def generate_ppt():
     """生成PPT文件"""
     try:
         data = request.get_json()
-        logger.info(f"收到生成请求: {data.keys()}")
+        if not data:
+            return jsonify({"error": "无效的请求数据"}), 400
+        logger.info("收到生成请求")
 
         title = data.get('title', '毕业论文答辩')
         subtitle = data.get('subtitle', '')
@@ -432,12 +442,15 @@ def generate_ppt():
         ppt_stream.seek(0)
 
         # 返回文件
-        filename = title.replace(" ", "_") + ".pptx"
+        safe_title = os.path.basename(title).strip().rstrip('.')
+        if not safe_title:
+            safe_title = "presentation"
+        filename = safe_title.replace(" ", "_") + ".pptx"
         logger.info(f"PPT生成成功: {filename}")
         return send_file(
             ppt_stream,
             as_attachment=True,
-            download_name=filename,
+            download_name=safe_title.replace(" ", "_") + ".pptx",
             mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
         )
 
@@ -450,4 +463,4 @@ def generate_ppt():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true', port=5000)

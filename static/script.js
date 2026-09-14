@@ -249,7 +249,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const imagePreview = slideElement.querySelector('.image-preview');
-                        imagePreview.innerHTML = `<img src="${event.target.result}" alt="预览">`;
+                        const existingImg = imagePreview.querySelector('img');
+                        if (existingImg) {
+                            existingImg.src = event.target.result;
+                        } else {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            img.alt = '预览';
+                            imagePreview.innerHTML = '';
+                            imagePreview.appendChild(img);
+                        }
                         imagePreview.classList.remove('hidden');
                         slideData.image = event.target.result;
                     };
@@ -266,7 +275,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const imagePreview = slideElement.querySelector('.left-image-preview');
-                        imagePreview.innerHTML = `<img src="${event.target.result}" alt="预览">`;
+                        const existingImg = imagePreview.querySelector('img');
+                        if (existingImg) {
+                            existingImg.src = event.target.result;
+                        } else {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            img.alt = '预览';
+                            imagePreview.innerHTML = '';
+                            imagePreview.appendChild(img);
+                        }
                         imagePreview.classList.remove('hidden');
                         slideData.left_image = event.target.result;
                     };
@@ -283,7 +301,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const imagePreview = slideElement.querySelector('.right-image-preview');
-                        imagePreview.innerHTML = `<img src="${event.target.result}" alt="预览">`;
+                        const existingImg = imagePreview.querySelector('img');
+                        if (existingImg) {
+                            existingImg.src = event.target.result;
+                        } else {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            img.alt = '预览';
+                            imagePreview.innerHTML = '';
+                            imagePreview.appendChild(img);
+                        }
                         imagePreview.classList.remove('hidden');
                         slideData.right_image = event.target.result;
                     };
@@ -531,9 +558,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 发送请求
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         fetch('/generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify(currentProject),
         })
         .then(response => {
@@ -577,12 +605,20 @@ document.addEventListener('DOMContentLoaded', function() {
             generateBtn.disabled = false;
 
             if (isPreview) {
-                document.getElementById('modal-placeholder').innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h3>生成失败</h3>
-                    <p>${error.message}</p>
-                    <p>请检查网络连接后重试</p>
-                `;
+                const placeholder = document.getElementById('modal-placeholder');
+                placeholder.innerHTML = '';
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-exclamation-triangle';
+                const h3 = document.createElement('h3');
+                h3.textContent = '生成失败';
+                const p1 = document.createElement('p');
+                p1.textContent = error.message;
+                const p2 = document.createElement('p');
+                p2.textContent = '请检查网络连接后重试';
+                placeholder.appendChild(icon);
+                placeholder.appendChild(h3);
+                placeholder.appendChild(p1);
+                placeholder.appendChild(p2);
             }
         });
     }

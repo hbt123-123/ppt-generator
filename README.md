@@ -39,8 +39,5 @@ python app.py
 - `uploads/`: 上传文件临时存储
 
 ## 联系信息
-- 🌐 GitHub: https://github.com/hbt123-123
-- 🌐 HuggingFace: https://huggingface.co/firefly123firefly
-- 🌐 ModelScope: https://www.modelscope.cn/profile/firefly123123
-- 📧 邮箱: 3478584509@qq.com
+- 📧 邮箱：请联系项目维护者获取联系方式
 
